@@ -1,20 +1,18 @@
 #!/bin/bash
-# Daily crawl + build + push to GitHub Pages
-# Runs every day at 7:00 AM
+# Daily crawl on Mac → push data to GitHub → GitHub rebuilds site automatically
+# Set up as LaunchAgent to run daily
 
 cd /Users/ferion/Desktop/ebay-vintage-finder
+LOG="/tmp/vintage-finder.log"
 
-echo "$(date): Starting daily crawl..."
+echo "$(date): Starting daily crawl..." >> "$LOG"
 
-# Run crawler
-/usr/bin/python3 crawl.py >> /tmp/vintage-finder-crawl.log 2>&1
+# Run crawler (on Mac where Playwright works properly)
+/usr/bin/python3 crawl.py >> "$LOG" 2>&1
 
-# Build static site
-/usr/bin/python3 build_site.py >> /tmp/vintage-finder-crawl.log 2>&1
+# Push data to GitHub (this triggers GitHub Actions to rebuild the site)
+git add data/
+git diff --staged --quiet || git commit -m "Daily data: $(date '+%Y-%m-%d %H:%M')"
+git push origin main >> "$LOG" 2>&1
 
-# Push to GitHub
-git add data/ docs/
-git commit -m "Daily update: $(date '+%Y-%m-%d %H:%M')"
-git push origin main
-
-echo "$(date): Done!"
+echo "$(date): Done!" >> "$LOG"
