@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vintage Finder - eBay & Depop</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="header-inner">
+            <h1>Vintage Finder</h1>
+            <p class="subtitle">eBay & Depop 빈티지 의류 — 매일 자동 수집</p>
+            <div class="crawl-info" id="crawlInfo"></div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Platform Tabs -->
+        <section class="platform-tabs">
+            <button class="platform-tab active" data-platform="all" onclick="setPlatform('all')">
+                <span class="tab-label">전체</span>
+            </button>
+            <button class="platform-tab" data-platform="ebay" onclick="setPlatform('ebay')">
+                <span class="tab-icon">🛒</span>
+                <span class="tab-label">eBay</span>
+            </button>
+            <button class="platform-tab" data-platform="depop" onclick="setPlatform('depop')">
+                <span class="tab-icon">👗</span>
+                <span class="tab-label">Depop</span>
+            </button>
+        </section>
+
+        <!-- Filters -->
+        <section class="search-panel">
+            <div class="search-row">
+                <div class="search-input-wrap">
+                    <input type="text" id="searchText" placeholder="제목 검색 (예: levis, nike, 90s ...)">
+                    <button onclick="loadItems(1)">검색</button>
+                </div>
+            </div>
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label>카테고리</label>
+                    <select id="queryFilter">
+                        <option value="">전체 카테고리</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>정렬</label>
+                    <select id="sort" onchange="loadItems(1)">
+                        <option value="newest">최신순</option>
+                        <option value="price_low">가격 낮은순</option>
+                        <option value="price_high">가격 높은순</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>최소 가격 ($)</label>
+                    <input type="number" id="minPrice" placeholder="0" min="0">
+                </div>
+                <div class="filter-group">
+                    <label>최대 가격 ($)</label>
+                    <input type="number" id="maxPrice" placeholder="1000" min="0">
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Info -->
+        <section class="results-info" id="resultsInfo" style="display:none;">
+            <div class="results-info-inner">
+                <span id="totalCount"></span>
+                <div class="view-toggle">
+                    <button class="view-btn active" data-view="grid" onclick="setView('grid')">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+                    </button>
+                    <button class="view-btn" data-view="list" onclick="setView('list')">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="14" height="3" rx="1"/><rect x="1" y="6" width="14" height="3" rx="1"/><rect x="1" y="11" width="14" height="3" rx="1"/></svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading -->
+        <div id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <p>불러오는 중...</p>
+        </div>
+
+        <!-- Results Grid -->
+        <section class="results-container">
+            <div class="results grid-view" id="results"></div>
+        </section>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination" style="display:none;">
+            <button id="prevBtn" onclick="changePage(-1)">← 이전</button>
+            <span id="pageInfo"></span>
+            <button id="nextBtn" onclick="changePage(1)">다음 →</button>
+        </div>
+
+        <!-- Favorites Section -->
+        <section class="favorites-section" id="favoritesSection" style="display:none;">
+            <div class="fav-header">
+                <h2>찜 목록 (<span id="favCount">0</span>)</h2>
+                <div class="fav-actions">
+                    <button onclick="exportFavorites()">CSV 다운로드</button>
+                    <button onclick="clearFavorites()" class="btn-danger">전체 삭제</button>
+                </div>
+            </div>
+            <div class="fav-list" id="favList"></div>
+        </section>
+    </main>
+
+    <!-- Floating Favorites Toggle -->
+    <button class="fab" id="fabBtn" onclick="toggleFavorites()" style="display:none;">
+        ♥ <span id="fabCount">0</span>
+    </button>
+
+    <script>
+        let currentPage = 1;
+        let currentPlatform = 'all';
+        let totalPages = 1;
+        let favorites = JSON.parse(localStorage.getItem('vf_favorites') || '[]');
+
+        document.getElementById('searchText').addEventListener('keypress', e => {
+            if (e.key === 'Enter') loadItems(1);
+        });
+        document.getElementById('queryFilter').addEventListener('change', () => loadItems(1));
+
+        updateFavUI();
+        loadItems(1);
+
+        function setPlatform(p) {
+            currentPlatform = p;
+            document.querySelectorAll('.platform-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.platform === p);
+            });
+            loadItems(1);
+        }
+
+        async function loadItems(page) {
+            currentPage = page;
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('resultsInfo').style.display = 'none';
+            document.getElementById('pagination').style.display = 'none';
+
+            const params = new URLSearchParams({
+                platform: currentPlatform,
+                query: document.getElementById('queryFilter').value,
+                sort: document.getElementById('sort').value,
+                min_price: document.getElementById('minPrice').value,
+                max_price: document.getElementById('maxPrice').value,
+                search: document.getElementById('searchText').value,
+                page: page,
+            });
+
+            try {
+                const resp = await fetch(`/api/items?${params}`);
+                const data = await resp.json();
+                document.getElementById('loading').style.display = 'none';
+
+                // Update crawl info
+                if (data.crawled_at) {
+                    const parts = [];
+                    if (data.crawled_at.ebay) parts.push(`eBay: ${formatDate(data.crawled_at.ebay)}`);
+                    if (data.crawled_at.depop) parts.push(`Depop: ${formatDate(data.crawled_at.depop)}`);
+                    document.getElementById('crawlInfo').textContent = `마지막 수집: ${parts.join(' | ')}`;
+                }
+
+                // Update query filter options
+                const qf = document.getElementById('queryFilter');
+                const currentVal = qf.value;
+                if (data.queries && qf.options.length <= 1) {
+                    data.queries.forEach(q => {
+                        const opt = document.createElement('option');
+                        opt.value = q;
+                        opt.textContent = q;
+                        qf.appendChild(opt);
+                    });
+                    qf.value = currentVal;
+                }
+
+                if (data.items.length > 0) {
+                    renderResults(data.items);
+                    document.getElementById('totalCount').textContent = `${data.total}개 상품`;
+                    document.getElementById('resultsInfo').style.display = 'flex';
+                    document.getElementById('pagination').style.display = 'flex';
+                    totalPages = data.total_pages;
+                    document.getElementById('pageInfo').textContent = `${data.page} / ${totalPages} 페이지`;
+                    document.getElementById('prevBtn').disabled = data.page <= 1;
+                    document.getElementById('nextBtn').disabled = data.page >= totalPages;
+                } else {
+                    document.getElementById('results').innerHTML = '<div class="no-results">검색 결과가 없습니다.</div>';
+                }
+            } catch (err) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').innerHTML = `<div class="no-results">오류: ${err.message}</div>`;
+            }
+        }
+
+        function formatDate(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            return d.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function renderResults(items) {
+            const container = document.getElementById('results');
+            container.innerHTML = items.map((item, i) => {
+                const isFav = favorites.some(f => f.link === item.link);
+                const platform = item._platform || item.platform || 'ebay';
+                const badgeClass = platform === 'depop' ? 'depop-badge' : 'ebay-badge';
+                const badgeText = platform === 'depop' ? 'Depop' : 'eBay';
+                const btnText = platform === 'depop' ? 'Depop에서 보기 →' : 'eBay에서 보기 →';
+
+                return `
+                <div class="item-card">
+                    <div class="item-image">
+                        <img src="${item.image || ''}" alt="${item.title}" loading="lazy"
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22><rect fill=%22%23f0f0f0%22 width=%22200%22 height=%22200%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2214%22>No Image</text></svg>'">
+                        <button class="fav-btn ${isFav ? 'active' : ''}" onclick="toggleFav(${i})" data-index="${i}">
+                            ${isFav ? '♥' : '♡'}
+                        </button>
+                        <span class="platform-badge ${badgeClass}">${badgeText}</span>
+                    </div>
+                    <div class="item-info">
+                        <h3 class="item-title" title="${item.title}">${item.title}</h3>
+                        <div class="item-price">${item.price}</div>
+                        <div class="item-meta">
+                            ${item.condition ? `<span class="meta-tag">${item.condition}</span>` : ''}
+                            ${item.shipping ? `<span class="meta-tag shipping">${item.shipping}</span>` : ''}
+                            ${item.query ? `<span class="meta-tag query">${item.query}</span>` : ''}
+                        </div>
+                        ${item.seller ? `<div class="item-seller">판매자: ${item.seller}</div>` : ''}
+                        ${item.extra ? `<div class="item-location">${item.extra}</div>` : ''}
+                        <a href="${item.link}" target="_blank" class="item-link ${platform === 'depop' ? 'depop-link' : ''}">${btnText}</a>
+                    </div>
+                </div>`;
+            }).join('');
+
+            window._currentItems = items;
+        }
+
+        function setView(view) {
+            const container = document.getElementById('results');
+            container.className = `results ${view}-view`;
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === view);
+            });
+        }
+
+        function changePage(delta) {
+            const next = currentPage + delta;
+            if (next >= 1 && next <= totalPages) {
+                loadItems(next);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        // Favorites
+        function toggleFav(index) {
+            const item = window._currentItems[index];
+            const existIdx = favorites.findIndex(f => f.link === item.link);
+            if (existIdx >= 0) {
+                favorites.splice(existIdx, 1);
+            } else {
+                favorites.push({ ...item, addedAt: new Date().toISOString() });
+            }
+            saveFavorites();
+            updateFavUI();
+            const btn = document.querySelector(`.fav-btn[data-index="${index}"]`);
+            if (btn) {
+                const isFav = favorites.some(f => f.link === item.link);
+                btn.className = `fav-btn ${isFav ? 'active' : ''}`;
+                btn.textContent = isFav ? '♥' : '♡';
+            }
+        }
+
+        function saveFavorites() {
+            localStorage.setItem('vf_favorites', JSON.stringify(favorites));
+        }
+
+        function updateFavUI() {
+            const count = favorites.length;
+            document.getElementById('favCount').textContent = count;
+            document.getElementById('fabCount').textContent = count;
+            document.getElementById('fabBtn').style.display = count > 0 ? 'flex' : 'none';
+            renderFavList();
+        }
+
+        function renderFavList() {
+            const container = document.getElementById('favList');
+            if (!favorites.length) {
+                container.innerHTML = '<p class="fav-empty">찜한 상품이 없습니다.</p>';
+                return;
+            }
+            container.innerHTML = favorites.map((item, i) => `
+                <div class="fav-item">
+                    <img src="${item.image || ''}" alt="" class="fav-thumb">
+                    <div class="fav-info">
+                        <div class="fav-title">${item.title}</div>
+                        <div class="fav-price">${item.price}
+                            <span class="fav-platform-tag">${(item._platform || item.platform || 'ebay').toUpperCase()}</span>
+                        </div>
+                    </div>
+                    <div class="fav-actions-item">
+                        <a href="${item.link}" target="_blank" class="btn-sm">보기</a>
+                        <button class="btn-sm btn-danger" onclick="removeFav(${i})">삭제</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function removeFav(index) {
+            favorites.splice(index, 1);
+            saveFavorites();
+            updateFavUI();
+        }
+
+        function clearFavorites() {
+            if (confirm('찜 목록을 전체 삭제하시겠습니까?')) {
+                favorites = [];
+                saveFavorites();
+                updateFavUI();
+                document.getElementById('favoritesSection').style.display = 'none';
+            }
+        }
+
+        function toggleFavorites() {
+            const section = document.getElementById('favoritesSection');
+            const isVisible = section.style.display !== 'none';
+            section.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) section.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function exportFavorites() {
+            if (!favorites.length) return;
+            const headers = ['플랫폼', '제목', '가격', '상태', '배송', '판매자', '링크'];
+            const rows = favorites.map(f => [
+                `"${(f._platform || f.platform || 'ebay').toUpperCase()}"`,
+                `"${f.title.replace(/"/g, '""')}"`,
+                `"${f.price}"`,
+                `"${f.condition || ''}"`,
+                `"${f.shipping || ''}"`,
+                `"${f.seller || ''}"`,
+                f.link
+            ]);
+            const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vintage-finder-${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
