@@ -1,0 +1,10 @@
+{
+    "appId": "com.rofilenewseong.beatfield",
+    "appName": "Beatfield",
+    "webDir": "www",
+    "backgroundColor": "#0D121B",
+    "ios": {
+        "contentInset": "never",
+        "backgroundColor": "#0D121B"
+    }
+}
