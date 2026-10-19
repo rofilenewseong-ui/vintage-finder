@@ -1,0 +1,1290 @@
+<title>Beatfield</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Layout: phone-first app shell. One centered column, a persistent mini player and a bottom tab bar. */
+:root {
+  --bg: #EDF0F4;
+  --surface: #F8F9FB;
+  --ink: #172030;
+  --muted: #5A6577;
+  --line: #D3D9E2;
+  --accent: #A9661A;
+  --accent-ink: #FFFFFF;
+  --left: #2C7590;
+  --field: #E3E8EF;
+  --bar: rgba(248, 249, 251, 0.92);
+  --display: "Bricolage Grotesque", "IBM Plex Sans KR", system-ui, sans-serif;
+  --body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D121B; --surface: #151C28; --ink: #E7EAF0; --muted: #8C96A8; --line: #263042;
+    --accent: #E8B46A; --accent-ink: #1A1206; --left: #79B8CC; --field: #0A0E16; --bar: rgba(21, 28, 40, 0.92);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D121B; --surface: #151C28; --ink: #E7EAF0; --muted: #8C96A8; --line: #263042;
+  --accent: #E8B46A; --accent-ink: #1A1206; --left: #79B8CC; --field: #0A0E16; --bar: rgba(21, 28, 40, 0.92);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px calc(150px + env(safe-area-inset-bottom, 0px));
+}
+.wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: -0.02em; margin: 0; }
+h1 span { color: var(--accent); }
+.hp { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; text-align: right; }
+.hp svg { width: 16px; height: 16px; flex: none; }
+
+.view { display: flex; flex-direction: column; gap: 14px; }
+.view-title { font-family: var(--display); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin: 4px 0 0; text-wrap: balance; }
+.view-sub { margin: -8px 0 0; font-size: 13px; color: var(--muted); }
+
+svg.i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* Field */
+.field { background: var(--field); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; position: relative; }
+.canvas-box { position: relative; aspect-ratio: 1 / 0.82; max-width: 100%; width: 100%; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.readout { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; padding-bottom: 14%; text-align: center; }
+.readout .greek { font-family: var(--display); font-size: 18px; color: var(--accent); }
+.readout .hz { font-family: var(--display); font-weight: 700; font-size: clamp(44px, 14vw, 68px); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.readout .hz small { font-size: 0.32em; font-weight: 500; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+.readout .band { margin-top: 6px; font-size: 13px; color: var(--muted); padding-inline: 16px; }
+.chan { position: absolute; bottom: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.chan.l { left: 14px; color: var(--left); }
+.chan.r { right: 14px; color: var(--accent); }
+
+section.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.panel h2 em { font-style: normal; text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+.presets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.preset {
+  background: transparent; border: 1px solid var(--line); border-radius: 12px; cursor: pointer;
+  padding: 9px 2px; display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--ink); font-family: var(--body);
+}
+.preset .g { font-family: var(--display); font-size: 19px; line-height: 1.1; color: var(--accent); }
+.preset .n { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.preset .f { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.preset[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+.ctl { display: flex; flex-direction: column; gap: 2px; }
+.ctl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl-head label { font-size: 14px; font-weight: 500; }
+.ctl-head output { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.note { font-size: 12px; color: var(--muted); margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 2px 0; height: 26px; cursor: pointer; }
+
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button, .chip {
+  flex: 1 1 0; min-width: 52px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line);
+  background: transparent; color: var(--ink); font-family: var(--body); font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.seg button[aria-pressed="true"], .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.solf { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.solf::-webkit-scrollbar { display: none; }
+.solf button {
+  flex: none; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 12px; padding: 8px 12px;
+  display: flex; flex-direction: column; align-items: flex-start; cursor: pointer; font-family: var(--body); text-align: left;
+}
+.solf b { font-family: var(--mono); font-size: 13px; font-weight: 500; }
+.solf span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.solf button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+.toggle { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.toggle input { margin-top: 4px; accent-color: var(--accent); width: 18px; height: 18px; flex: none; }
+.toggle div { display: flex; flex-direction: column; min-width: 0; }
+.toggle b { font-weight: 500; font-size: 14px; }
+.toggle span { font-size: 12px; color: var(--muted); }
+
+/* Sound mixer */
+.mixer { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 380px) { .mixer { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.tile {
+  border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 14px; padding: 12px 4px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; font-family: var(--body); position: relative;
+}
+.tile span { font-size: 12px; white-space: nowrap; }
+.tile[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.tile[aria-pressed="true"] span { color: var(--ink); }
+.tile.loading::after { content: ""; position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 0.8s infinite alternate; }
+@keyframes blink { to { opacity: 0.2; } }
+.levels { display: flex; flex-direction: column; gap: 4px; }
+.level { display: grid; grid-template-columns: 74px minmax(0, 1fr) 36px; align-items: center; gap: 8px; font-size: 13px; }
+.level output { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; }
+
+.saved { display: flex; flex-direction: column; gap: 6px; }
+.saved-row { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 4px 4px 4px 12px; }
+.saved-row button.apply { flex: 1; min-width: 0; text-align: left; background: none; border: none; color: var(--ink); font-family: var(--body); font-size: 14px; cursor: pointer; padding: 6px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 8px; border-radius: 8px; display: grid; place-items: center; }
+.icon-btn svg { width: 18px; height: 18px; }
+
+.btn {
+  border: none; border-radius: 12px; padding: 12px 16px; font-family: var(--body); font-size: 14px; font-weight: 600; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink);
+}
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-row .btn { flex: 1 1 0; }
+
+/* Routines & search */
+.search { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 12px; }
+.search input { flex: 1; min-width: 0; border: none; background: transparent; color: var(--ink); font-family: var(--body); font-size: 16px; padding: 10px 0; outline: none; }
+.search svg { color: var(--muted); }
+.now-card { background: var(--field); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.now-card .eyebrow { font-size: 12px; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; }
+.now-card h3 { margin: 0; font-family: var(--display); font-size: 22px; letter-spacing: -0.01em; }
+.now-card p { margin: 0; font-size: 13px; color: var(--muted); }
+.list { display: flex; flex-direction: column; gap: 8px; }
+.row {
+  display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 14px; cursor: pointer; text-align: left; color: var(--ink); font-family: var(--body); width: 100%;
+}
+.row .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.row b { font-weight: 600; font-size: 15px; }
+.row span { font-size: 12px; color: var(--muted); }
+.row .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; white-space: nowrap; flex: none; }
+.row .badge { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-family: var(--display); font-size: 18px; flex: none; }
+.empty { text-align: center; color: var(--muted); font-size: 14px; padding: 24px 8px; }
+
+/* Breath */
+.breath-stage { background: var(--field); border: 1px solid var(--line); border-radius: 22px; aspect-ratio: 1 / 0.9; max-width: 100%; position: relative; display: grid; place-items: center; overflow: hidden; }
+.orb { width: 62%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--accent) 38%, transparent) 0%, color-mix(in srgb, var(--accent) 6%, transparent) 70%); border: 1.5px solid color-mix(in srgb, var(--accent) 60%, transparent); transform: scale(0.55); transition-property: transform; transition-timing-function: ease-in-out; }
+.orb-guide { position: absolute; width: 62%; aspect-ratio: 1; border-radius: 50%; border: 1px dashed var(--line); }
+.breath-txt { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.breath-txt b { font-family: var(--display); font-size: 26px; }
+.breath-txt span { font-family: var(--mono); font-size: 40px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.breath-txt small { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.patterns { display: flex; flex-direction: column; gap: 6px; }
+.pattern { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 14px; padding: 10px 12px; cursor: pointer; text-align: left; font-family: var(--body); }
+.pattern .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pattern b { font-size: 14px; font-weight: 600; }
+.pattern span { font-size: 12px; color: var(--muted); }
+.pattern code { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.pattern[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* Focus */
+.focus-stage { background: var(--field); border: 1px solid var(--line); border-radius: 22px; padding: 20px 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ring { width: min(240px, 70vw); max-width: 100%; aspect-ratio: 1; position: relative; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 6; }
+.ring .track { stroke: var(--line); }
+.ring .prog { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 0.4s linear; }
+.ring-txt { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-txt b { font-size: 14px; color: var(--accent); font-weight: 600; }
+.ring-txt span { font-family: var(--mono); font-size: 44px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.ring-txt small { font-size: 12px; color: var(--muted); }
+.dots { display: flex; gap: 6px; margin-top: 6px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.dots i.on { background: var(--accent); }
+
+/* Records */
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat span { font-size: 12px; color: var(--muted); }
+.stat b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stat b small { font-size: 13px; color: var(--muted); font-weight: 500; margin-left: 2px; }
+.bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end; height: 140px; }
+.bar { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.bar i { width: 100%; max-width: 28px; border-radius: 6px 6px 2px 2px; background: color-mix(in srgb, var(--accent) 35%, transparent); min-height: 3px; }
+.bar.today i { background: var(--accent); }
+.bar em { font-style: normal; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar span { font-size: 12px; color: var(--muted); }
+.bar.today span { color: var(--ink); font-weight: 600; }
+
+/* Mini player + tabs */
+.dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--bar); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+.dock-in { max-width: 560px; margin: 0 auto; }
+.mini { display: flex; align-items: center; gap: 12px; padding: 10px 8px 8px; }
+.play { width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer; flex: none; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
+.play svg { width: 20px; height: 20px; }
+.mini .st { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mini .st b { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini .st span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini .clock { font-family: var(--mono); font-size: 17px; font-variant-numeric: tabular-nums; }
+.tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.tabs button { background: none; border: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0 8px; font-family: var(--body); font-size: 11px; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--accent); }
+
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+footer { font-size: 12px; color: var(--muted); line-height: 1.6; }
+footer p { margin: 0 0 6px; }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) { .orb { transition-duration: 0s !important; } .tile.loading::after { animation: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Beat<span>field</span></h1>
+    <div class="hp">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="7" rx="1.5"/><rect x="17" y="14" width="4" height="7" rx="1.5"/></svg>
+      헤드폰을 끼고 들어주세요
+    </div>
+  </header>
+
+  <!-- SOUND -->
+  <main class="view" id="v-sound">
+    <div class="field">
+      <div class="canvas-box">
+        <canvas id="viz" aria-hidden="true"></canvas>
+        <div class="readout">
+          <div class="greek" id="ro-greek">α Alpha</div>
+          <div class="hz"><span id="ro-hz">10.0</span><small>Hz</small></div>
+          <div class="band" id="ro-band">편안한 이완 · 가벼운 집중</div>
+        </div>
+        <div class="chan l" id="ch-l">L 215.0 Hz</div>
+        <div class="chan r" id="ch-r">R 225.0 Hz</div>
+      </div>
+    </div>
+
+    <section class="panel">
+      <h2>뇌파 모드</h2>
+      <div class="seg" id="tone-seg" role="group" aria-label="톤 종류">
+        <button data-tone="binaural">바이노럴</button>
+        <button data-tone="iso">아이소크로닉</button>
+        <button data-tone="off">톤 끄기</button>
+      </div>
+      <p class="note" id="tone-note">양쪽 귀에 다른 주파수를 들려줘요. 헤드폰이 필요해요.</p>
+      <div class="presets" id="presets"></div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="beat">비트 주파수</label><output id="beat-out">10.0 Hz</output></div>
+        <input type="range" id="beat" min="0.5" max="45" step="0.5" value="10">
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="carrier">기준음</label><output id="carrier-out">220 Hz</output></div>
+        <input type="range" id="carrier" min="80" max="1000" step="1" value="220">
+      </div>
+      <label class="toggle" for="ramp">
+        <input type="checkbox" id="ramp">
+        <div><b>천천히 진입</b><span>10 Hz에서 시작해 8분 동안 목표 주파수로 옮겨가요</span></div>
+      </label>
+    </section>
+
+    <section class="panel">
+      <h2>치유 주파수 <em>솔페지오 · 432 Hz</em></h2>
+      <div class="solf" id="solf"></div>
+      <p class="note">고르면 기준음이 그 주파수로 바뀌어요. 각 주파수의 의미는 전통적으로 전해지는 설명이에요.</p>
+    </section>
+
+    <section class="panel">
+      <h2>자연 소리 &amp; 노이즈 <em id="mix-count">여러 개를 겹쳐 들을 수 있어요</em></h2>
+      <div class="mixer" id="mixer"></div>
+      <div class="levels" id="levels"></div>
+      <div class="ctl" id="tin-ctl" hidden>
+        <div class="ctl-head"><label for="tin">이명 주파수</label><output id="tin-out">4000 Hz</output></div>
+        <input type="range" id="tin" min="1000" max="12000" step="50" value="4000">
+        <div class="btn-row"><button class="btn ghost" id="tin-test">이 주파수 들어보기</button></div>
+        <p class="note">귀에서 들리는 소리와 가장 비슷한 높이를 찾아 맞추면, 그 부분만 비운 노이즈를 들려줘요.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>세션</h2>
+      <div class="ctl">
+        <div class="ctl-head"><label for="vol">전체 볼륨</label><output id="vol-out">50%</output></div>
+        <input type="range" id="vol" min="0" max="100" step="1" value="50">
+      </div>
+      <div class="seg" id="timer-seg" role="group" aria-label="타이머">
+        <button data-min="10">10분</button>
+        <button data-min="20">20분</button>
+        <button data-min="30">30분</button>
+        <button data-min="60">60분</button>
+        <button data-min="0">무제한</button>
+      </div>
+      <label class="toggle" for="bgmode">
+        <input type="checkbox" id="bgmode">
+        <div><b>잠금화면 재생 (iPhone)</b><span>화면을 꺼도 계속 들리도록 1분짜리 루프를 만들어 재생해요. 켜면 천천히 진입은 꺼지고, 설정을 바꿀 때마다 잠깐 끊겨요.</span></div>
+      </label>
+    </section>
+
+    <section class="panel">
+      <h2>내 믹스</h2>
+      <div class="saved" id="saved"></div>
+      <button class="btn ghost" id="save-mix">지금 설정을 믹스로 저장</button>
+    </section>
+
+    <footer>
+      <p>왼쪽 귀와 오른쪽 귀에 조금 다른 주파수를 들려주면 뇌는 그 차이만큼 울렁이는 박동을 듣게 돼요. 아이소크로닉 톤은 소리 자체를 일정한 박자로 켰다 껐다 해서 스피커로도 들려요.</p>
+      <p>운전 중에는 사용하지 마세요. 뇌전증이나 심장 질환이 있다면 사용 전에 의사와 상담하세요. 볼륨은 작게 시작하세요.</p>
+    </footer>
+  </main>
+
+  <!-- ROUTINES -->
+  <main class="view" id="v-routine" hidden>
+    <h2 class="view-title">루틴</h2>
+    <label class="search" for="q">
+      <svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+      <input id="q" type="search" placeholder="수면, 집중, 빗소리, 528 Hz…" autocomplete="off">
+    </label>
+    <div id="routine-home">
+      <div class="now-card" id="now-card"></div>
+    </div>
+    <div class="list" id="routine-list"></div>
+  </main>
+
+  <!-- BREATH -->
+  <main class="view" id="v-breath" hidden>
+    <h2 class="view-title">호흡 가이드</h2>
+    <p class="view-sub">원이 커질 때 들이쉬고, 작아질 때 내쉬어요.</p>
+    <div class="breath-stage">
+      <div class="orb-guide"></div>
+      <div class="orb" id="orb"></div>
+      <div class="breath-txt"><b id="br-label">준비</b><span id="br-count">–</span><small id="br-round">패턴을 고르고 시작하세요</small></div>
+    </div>
+    <div class="btn-row"><button class="btn" id="br-start">시작</button></div>
+    <section class="panel">
+      <h2>패턴</h2>
+      <div class="patterns" id="patterns"></div>
+    </section>
+    <section class="panel">
+      <h2>길이</h2>
+      <div class="seg" id="br-len" role="group" aria-label="호흡 길이">
+        <button data-min="1">1분</button><button data-min="3">3분</button><button data-min="5">5분</button><button data-min="10">10분</button>
+      </div>
+      <label class="toggle" for="br-sound"><input type="checkbox" id="br-sound" checked><div><b>안내음</b><span>들숨과 날숨이 바뀔 때 부드러운 소리를 내요</span></div></label>
+      <label class="toggle" for="br-mix"><input type="checkbox" id="br-mix"><div><b>배경 사운드 함께 재생</b><span>사운드 탭에서 고른 설정을 같이 틀어요</span></div></label>
+    </section>
+  </main>
+
+  <!-- FOCUS -->
+  <main class="view" id="v-focus" hidden>
+    <h2 class="view-title">집중 모드</h2>
+    <p class="view-sub">집중 시간엔 베타파, 쉬는 시간엔 알파파로 자동 전환돼요.</p>
+    <div class="focus-stage">
+      <div class="ring">
+        <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44"/><circle class="prog" id="ring-prog" cx="50" cy="50" r="44" stroke-dasharray="276.46" stroke-dashoffset="0"/></svg>
+        <div class="ring-txt"><b id="fo-phase">집중</b><span id="fo-time">25:00</span><small id="fo-cycle">1 / 4 회차</small></div>
+      </div>
+      <div class="dots" id="fo-dots"></div>
+    </div>
+    <div class="btn-row"><button class="btn" id="fo-start">집중 시작</button><button class="btn ghost" id="fo-skip" disabled>다음 단계로</button></div>
+    <section class="panel">
+      <h2>설정</h2>
+      <div class="ctl"><div class="ctl-head"><label>집중 시간</label></div>
+        <div class="seg" id="fo-work"><button data-v="15">15분</button><button data-v="25">25분</button><button data-v="45">45분</button><button data-v="50">50분</button></div></div>
+      <div class="ctl"><div class="ctl-head"><label>짧은 휴식</label></div>
+        <div class="seg" id="fo-brk"><button data-v="5">5분</button><button data-v="10">10분</button></div></div>
+      <div class="ctl"><div class="ctl-head"><label>회차 (4회마다 15분 긴 휴식)</label></div>
+        <div class="seg" id="fo-cyc"><button data-v="2">2회</button><button data-v="4">4회</button><button data-v="6">6회</button></div></div>
+    </section>
+    <section class="panel">
+      <h2>방해 금지</h2>
+      <p class="note">웹앱은 다른 앱을 막을 수 없어요. 집중할 때는 iPhone의 <b>설정 › 집중 모드</b>에서 '업무' 집중 모드를 켜고, 허용할 앱만 고르세요. 제어 센터에서 한 번에 켤 수도 있어요.</p>
+    </section>
+  </main>
+
+  <!-- RECORDS -->
+  <main class="view" id="v-stats" hidden>
+    <h2 class="view-title">기록</h2>
+    <div class="stats">
+      <div class="stat"><span>이번 주</span><b id="s-week">0<small>분</small></b></div>
+      <div class="stat"><span>연속 사용</span><b id="s-streak">0<small>일</small></b></div>
+      <div class="stat"><span>전체 세션</span><b id="s-total">0<small>회</small></b></div>
+    </div>
+    <section class="panel">
+      <h2>최근 7일 <em>분 단위</em></h2>
+      <div class="bars" id="bars"></div>
+    </section>
+    <section class="panel">
+      <h2>최근 세션</h2>
+      <div class="list" id="history"></div>
+      <div id="clear-box"></div>
+    </section>
+  </main>
+</div>
+
+<div class="dock">
+  <div class="dock-in">
+    <div class="mini">
+      <button class="play" id="play" aria-label="재생">
+        <svg id="ic-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>
+        <svg id="ic-stop" viewBox="0 0 24 24" fill="currentColor" hidden><rect x="6.5" y="5.5" width="4" height="13" rx="1"/><rect x="13.5" y="5.5" width="4" height="13" rx="1"/></svg>
+      </button>
+      <div class="st"><b id="st-title">휴식 준비됨</b><span id="st-sub">재생을 누르면 서서히 소리가 커져요</span></div>
+      <div class="clock" id="clock">30:00</div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-v="sound" aria-selected="true"><svg class="i" viewBox="0 0 24 24"><path d="M3 12h2l2-6 3 12 3-9 2 5 2-2h4"/></svg>사운드</button>
+      <button role="tab" data-v="routine"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>루틴</button>
+      <button role="tab" data-v="breath"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="10" stroke-dasharray="2 3"/></svg>호흡</button>
+      <button role="tab" data-v="focus"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4M9 2h6"/></svg>집중</button>
+      <button role="tab" data-v="stats"><svg class="i" viewBox="0 0 24 24"><path d="M5 20V11M10 20V5M15 20v-7M20 20V9"/></svg>기록</button>
+    </nav>
+  </div>
+</div>
+<audio id="bg-audio" playsinline preload="none"></audio>
+
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("beatfield:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("beatfield:" + k, JSON.stringify(v)); } catch (e) {} },
+};
+
+// ================= Data =================
+const WAVES = [
+  { id: "sleep", name: "수면", beat: 2.5, carrier: 140 },
+  { id: "med",   name: "명상", beat: 6,   carrier: 196 },
+  { id: "relax", name: "휴식", beat: 10,  carrier: 220 },
+  { id: "focus", name: "집중", beat: 16,  carrier: 250 },
+  { id: "peak",  name: "몰입", beat: 40,  carrier: 300 },
+];
+const BANDS = [
+  { max: 4,   g: "δ", name: "Delta", desc: "깊은 수면 · 회복" },
+  { max: 8,   g: "θ", name: "Theta", desc: "명상 · 몽롱한 이완" },
+  { max: 13,  g: "α", name: "Alpha", desc: "편안한 이완 · 가벼운 집중" },
+  { max: 30,  g: "β", name: "Beta",  desc: "또렷한 집중 · 활동" },
+  { max: 999, g: "γ", name: "Gamma", desc: "고도의 몰입 · 인지 활동" },
+];
+const bandOf = b => BANDS.find(x => b < x.max) || BANDS[4];
+const SOLF = [
+  { hz: 174, d: "통증 완화 · 안정" }, { hz: 285, d: "회복 · 재생" }, { hz: 396, d: "불안 · 두려움 해소" },
+  { hz: 417, d: "변화 · 정리" }, { hz: 432, d: "자연 조율음" }, { hz: 528, d: "회복 · 사랑" },
+  { hz: 639, d: "관계 · 조화" }, { hz: 741, d: "정화 · 표현" }, { hz: 852, d: "직관" }, { hz: 963, d: "명료함" },
+];
+const IC = {
+  rain: '<path d="M7 14a4 4 0 1 1 1.2-7.8A5 5 0 0 1 17.5 8 3.5 3.5 0 0 1 17 15H7z"/><path d="M8 18l-1 2.5M12 18l-1 2.5M16 18l-1 2.5"/>',
+  storm: '<path d="M7 14a4 4 0 1 1 1.2-7.8A5 5 0 0 1 17.5 8 3.5 3.5 0 0 1 17 15H7z"/><path d="M12.5 15l-2 3.5h3L12 22"/>',
+  ocean: '<path d="M2 9c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><path d="M2 14c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><path d="M2 19c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/>',
+  forest: '<path d="M12 3l5 7h-3l4 6H6l4-6H7z"/><path d="M12 16v5"/>',
+  night: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  stream: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/>',
+  fire: '<path d="M12 3c1 4 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-3.5 2.5-5 .5 1.5 1.5 2 2 2C11 7.5 11.5 5 12 3z"/>',
+  wind: '<path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 12h15a3 3 0 1 1-3 3"/><path d="M3 16h7"/>',
+  noise: '<path d="M4 11v2M7 8v8M10 5v14M13 9v6M16 6v12M19 10v4"/>',
+  ear: '<path d="M7 9a5 5 0 0 1 10 0c0 3-3 4-3 7a3 3 0 0 1-5.5 1.6"/><path d="M10 9a2 2 0 0 1 4 0c0 1.2-1 1.6-1.6 2.4"/>',
+  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+};
+const icon = (k, cls = "i") => `<svg class="${cls}" viewBox="0 0 24 24">${IC[k]}</svg>`;
+const SOUNDS = [
+  { id: "rain", name: "빗소리", ic: "rain" }, { id: "storm", name: "천둥번개", ic: "storm" },
+  { id: "ocean", name: "파도", ic: "ocean" }, { id: "forest", name: "숲 새소리", ic: "forest" },
+  { id: "night", name: "밤 풀벌레", ic: "night" }, { id: "stream", name: "시냇물", ic: "stream" },
+  { id: "fire", name: "모닥불", ic: "fire" }, { id: "wind", name: "바람", ic: "wind" },
+  { id: "white", name: "화이트", ic: "noise", trim: 0.55 }, { id: "pink", name: "핑크", ic: "noise", trim: 0.8 },
+  { id: "brown", name: "브라운", ic: "noise" }, { id: "tinnitus", name: "이명 완화", ic: "ear", trim: 0.6 },
+];
+const soundName = id => (SOUNDS.find(s => s.id === id) || {}).name || id;
+const ROUTINES = [
+  { id: "wake", name: "아침 깨우기", hours: [5, 10], desc: "숲 새소리와 베타파로 가볍게 깨어나요", tone: { mode: "iso", beat: 14, carrier: 285 }, mix: { forest: 45, stream: 20 }, timer: 10 },
+  { id: "deep", name: "딥 워크", hours: [9, 12], desc: "브라운 노이즈와 베타파로 오래 집중해요", tone: { mode: "binaural", beat: 16, carrier: 250 }, mix: { brown: 35, rain: 15 }, timer: 60 },
+  { id: "study", name: "공부 몰입", hours: [13, 18], desc: "감마파 40 Hz와 핑크 노이즈", tone: { mode: "iso", beat: 40, carrier: 300 }, mix: { pink: 20 }, timer: 60 },
+  { id: "reset", name: "오후 리셋", hours: [13, 17], desc: "파도 소리와 알파파로 10분 쉬어 가요", tone: { mode: "binaural", beat: 10, carrier: 220 }, mix: { ocean: 40 }, timer: 10 },
+  { id: "nap", name: "20분 낮잠", hours: [12, 16], desc: "세타파로 짧고 깊게 쉬어요", tone: { mode: "binaural", beat: 5, carrier: 180 }, mix: { ocean: 30, brown: 15 }, timer: 20 },
+  { id: "calm", name: "불안 진정", hours: [0, 24], desc: "396 Hz와 시냇물로 마음을 가라앉혀요", tone: { mode: "binaural", beat: 9, carrier: 396 }, mix: { stream: 35, pink: 10 }, timer: 15 },
+  { id: "meditate", name: "명상", hours: [6, 9], desc: "432 Hz 세타파와 밤 풀벌레", tone: { mode: "binaural", beat: 7, carrier: 432 }, mix: { night: 25, wind: 15 }, timer: 20 },
+  { id: "unwind", name: "저녁 휴식", hours: [18, 22], desc: "모닥불과 528 Hz로 하루를 정리해요", tone: { mode: "binaural", beat: 6, carrier: 528 }, mix: { fire: 40, rain: 15 }, timer: 30 },
+  { id: "sleep", name: "잠들기", hours: [21, 29], desc: "빗소리 속에서 델타파로 천천히 내려가요", tone: { mode: "binaural", beat: 2.5, carrier: 140, ramp: true }, mix: { rain: 45, brown: 20 }, timer: 60 },
+  { id: "storm", name: "폭풍우 숙면", hours: [22, 29], desc: "천둥번개와 브라운 노이즈", tone: { mode: "binaural", beat: 2, carrier: 120 }, mix: { storm: 45, brown: 15 }, timer: 60 },
+  { id: "tinnitus", name: "이명 케어", hours: [0, 24], desc: "이명 주파수를 비운 노이즈와 빗소리", tone: { mode: "off", beat: 10, carrier: 220 }, mix: { tinnitus: 40, rain: 20 }, timer: 30 },
+];
+const BREATHS = [
+  { id: "box", name: "박스 호흡", desc: "긴장을 풀고 집중을 되찾아요", steps: [["들이쉬기", 4, 1], ["멈추기", 4, 1], ["내쉬기", 4, 0], ["멈추기", 4, 0]] },
+  { id: "478", name: "4-7-8 호흡", desc: "잠들기 전에 좋아요", steps: [["들이쉬기", 4, 1], ["멈추기", 7, 1], ["내쉬기", 8, 0]] },
+  { id: "res", name: "공명 호흡", desc: "분당 약 5.5회, 심박을 고르게", steps: [["들이쉬기", 5.5, 1], ["내쉬기", 5.5, 0]] },
+  { id: "sigh", name: "마음 리셋", desc: "두 번 들이쉬고 길게 내쉬기", steps: [["들이쉬기", 2, 0.8], ["한 번 더", 1, 1], ["길게 내쉬기", 6, 0]] },
+  { id: "calm", name: "이완 호흡", desc: "날숨을 두 배로 길게", steps: [["들이쉬기", 4, 1], ["내쉬기", 8, 0]] },
+];
+
+// ================= State =================
+const S = Object.assign({
+  tone: "binaural", beat: 10, carrier: 220, ramp: false, vol: 50, timer: 30, mix: { rain: 35 },
+  tinHz: 4000, bg: false, label: "휴식", tab: "sound",
+  br: "box", brMin: 3, brSound: true, brMix: false,
+  fo: { work: 25, brk: 5, cyc: 4 },
+}, store.get("state", {}));
+const save = () => store.set("state", S);
+let SAVED = store.get("mixes", []);
+let HIST = store.get("history", []);
+
+// ================= Audio engine =================
+const LOOP = 30, XF = 1.5;
+const E = { ctx: null, master: null, tone: null, layers: {}, buffers: {}, pending: {}, playing: false, startedAt: 0, endAt: 0, ramp: null, wake: null, bgUrl: null, bgBusy: false, bgSwap: false };
+
+function ensureCtx() {
+  if (E.ctx) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+  E.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  E.master = E.ctx.createGain(); E.master.gain.value = 0; E.master.connect(E.ctx.destination);
+}
+const volLevel = () => Math.pow(S.vol / 100, 1.6) * 0.9;
+const layerLevel = (id, v) => Math.pow(v / 100, 1.5) * ((SOUNDS.find(s => s.id === id) || {}).trim || 1);
+
+function noiseData(type, n) {
+  const a = new Float32Array(n);
+  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
+  for (let i = 0; i < n; i++) {
+    const w = Math.random() * 2 - 1;
+    if (type === "white") a[i] = w * 0.3;
+    else if (type === "pink") {
+      b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
+      b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
+      a[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.08; b6 = w * 0.115926;
+    } else { last = (last + 0.02 * w) / 1.02; a[i] = last * 3; }
+  }
+  return a;
+}
+
+// ---- offline sound recipes (each renders LOOP+XF seconds) ----
+function mk(o) {
+  const sr = o.sampleRate;
+  const h = {
+    noise(type, dur, at = 0) {
+      const n = Math.ceil(dur * sr), b = o.createBuffer(2, n, sr);
+      b.getChannelData(0).set(noiseData(type, n)); b.getChannelData(1).set(noiseData(type, n));
+      const s = o.createBufferSource(); s.buffer = b; s.start(at); return s;
+    },
+    buf(L, R) {
+      const b = o.createBuffer(2, L.length, sr); b.getChannelData(0).set(L); b.getChannelData(1).set(R);
+      const s = o.createBufferSource(); s.buffer = b; s.start(0); return s;
+    },
+    f(type, freq, Q = 0.707) { const b = o.createBiquadFilter(); b.type = type; b.frequency.value = freq; b.Q.value = Q; return b; },
+    g(v) { const g = o.createGain(); g.gain.value = v; return g; },
+    pan(p) { const n = o.createStereoPanner(); n.pan.value = p; return n; },
+    chain(...ns) { for (let i = 0; i < ns.length - 1; i++) ns[i].connect(ns[i + 1]); ns[ns.length - 1].connect(o.destination); return ns; },
+    // sample-domain impulse bursts (rain drops, crackles)
+    bursts(D, count, len, ampFn, tauDiv = 4, cluster = 1) {
+      const n = Math.ceil(D * sr), L = new Float32Array(n), R = new Float32Array(n);
+      for (let k = 0; k < count; k++) {
+        let t0 = Math.floor(Math.random() * n);
+        const c = cluster > 1 && Math.random() < 0.15 ? Math.floor(rnd(2, cluster)) : 1;
+        for (let q = 0; q < c; q++) {
+          const dur = Math.floor(rnd(len[0], len[1]) * sr), amp = ampFn(), p = Math.random(), tau = dur / tauDiv;
+          for (let j = 0; j < dur && t0 + j < n; j++) { const v = (Math.random() * 2 - 1) * amp * Math.exp(-j / tau); L[t0 + j] += v * (1 - p); R[t0 + j] += v * p; }
+          t0 += Math.floor(rnd(0.01, 0.06) * sr);
+        }
+      }
+      return [L, R];
+    },
+  };
+  return h;
+}
+const RECIPES = {
+  white(o, D) { const h = mk(o); h.chain(h.noise("white", D), h.g(1)); },
+  pink(o, D) { const h = mk(o); h.chain(h.noise("pink", D), h.g(1)); },
+  brown(o, D) { const h = mk(o); h.chain(h.noise("brown", D), h.g(1)); },
+  tinnitus(o, D) { const h = mk(o); h.chain(h.noise("white", D), h.g(1)); },
+  rain(o, D) {
+    const h = mk(o);
+    h.chain(h.noise("pink", D), h.f("highpass", 400), h.f("lowpass", 6500), h.g(0.55));
+    h.chain(h.noise("brown", D), h.f("lowpass", 500), h.g(0.25));
+    const [L, R] = h.bursts(D, D * 70, [0.004, 0.02], () => Math.pow(Math.random(), 2) * 0.5);
+    h.chain(h.buf(L, R), h.f("highpass", 1800), h.f("lowpass", 9000), h.g(0.8));
+  },
+  storm(o, D) {
+    const h = mk(o);
+    h.chain(h.noise("brown", D), h.f("lowpass", 900), h.g(0.8));
+    h.chain(h.noise("pink", D), h.f("highpass", 600), h.f("lowpass", 5000), h.g(0.6));
+    const [L, R] = h.bursts(D, D * 110, [0.004, 0.018], () => Math.pow(Math.random(), 2) * 0.45);
+    h.chain(h.buf(L, R), h.f("highpass", 1500), h.g(0.7));
+    for (const [t, a] of [[4, 1], [18.5, 0.75]]) {
+      const lp = h.f("lowpass", 1400, 0.6), g = h.g(0);
+      lp.frequency.setValueAtTime(1400, t); lp.frequency.exponentialRampToValueAtTime(220, t + 2.5);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a * 1.6, t + 0.12);
+      g.gain.setTargetAtTime(a * 0.6, t + 0.3, 0.25); g.gain.linearRampToValueAtTime(a * 1.1, t + 1.3);
+      g.gain.setTargetAtTime(0, t + 1.8, 1.6);
+      h.chain(h.noise("brown", 9, t), lp, g, h.pan(rnd(-0.4, 0.4)));
+    }
+  },
+  ocean(o, D) {
+    const h = mk(o), lp = h.f("lowpass", 400, 0.5), g = h.g(0.08), hi = h.f("highpass", 2800), hg = h.g(0.12);
+    h.noise("pink", D).connect(lp); h.noise("brown", D).connect(h.g(1.4)).connect(lp);
+    lp.connect(g); h.noise("white", D).connect(hi).connect(hg).connect(g); g.connect(o.destination);
+    const per = [7, 8.5, 6.5, 8], amp = [0.9, 1, 0.7, 0.95];
+    g.gain.setValueAtTime(0.08, 0); lp.frequency.setValueAtTime(380, 0);
+    let t = 0, i = 0;
+    while (t < D) {
+      const p = per[i % 4], a = amp[i % 4];
+      g.gain.linearRampToValueAtTime(a, t + p * 0.5); g.gain.linearRampToValueAtTime(0.08, t + p);
+      lp.frequency.linearRampToValueAtTime(900 + 1600 * a, t + p * 0.5); lp.frequency.linearRampToValueAtTime(380, t + p);
+      t += p; i++;
+    }
+  },
+  forest(o, D) {
+    const h = mk(o), bed = h.g(0.22), lfo = o.createOscillator(), lg = h.g(0.1);
+    lfo.frequency.value = 1 / 15; lfo.connect(lg).connect(bed.gain); lfo.start(0);
+    h.chain(h.noise("pink", D), h.f("bandpass", 900, 0.6), bed);
+    const SP = [
+      { f: [3200, 4300], n: [3, 6], gap: 0.13, len: 0.07, sw: -900 },
+      { f: [2100, 2800], n: [2, 3], gap: 0.38, len: 0.26, sw: 450 },
+      { f: [4600, 6000], n: [8, 14], gap: 0.045, len: 0.03, sw: -1500 },
+      { f: [2600, 3400], n: [1, 2], gap: 0.5, len: 0.4, sw: -700 },
+    ];
+    let t = rnd(0.5, 2);
+    while (t < LOOP - 2) {
+      const sp = pick(SP), f0 = rnd(sp.f[0], sp.f[1]), n = Math.floor(rnd(sp.n[0], sp.n[1] + 1)), p = h.pan(rnd(-0.8, 0.8)), amp = rnd(0.04, 0.12);
+      p.connect(o.destination);
+      for (let k = 0; k < n; k++) {
+        const st = t + k * sp.gap * rnd(0.9, 1.1), os = o.createOscillator(), g = h.g(0);
+        os.frequency.setValueAtTime(f0, st); os.frequency.exponentialRampToValueAtTime(Math.max(600, f0 + sp.sw), st + sp.len);
+        g.gain.setValueAtTime(0, st); g.gain.linearRampToValueAtTime(amp, st + sp.len * 0.2); g.gain.exponentialRampToValueAtTime(0.0001, st + sp.len);
+        os.connect(g).connect(p); os.start(st); os.stop(st + sp.len + 0.02);
+      }
+      t += rnd(1.2, 3.6);
+    }
+  },
+  night(o, D) {
+    const h = mk(o), sr = o.sampleRate, n = Math.ceil(D * sr);
+    h.chain(h.noise("brown", D), h.f("lowpass", 250), h.g(0.4));
+    h.chain(h.noise("pink", D), h.f("bandpass", 2500, 0.5), h.g(0.05));
+    const L = new Float32Array(n), R = new Float32Array(n);
+    for (const c of [{ f: 4300, p: 0.25, a: 0.12, per: 0.75, k: 3 }, { f: 4700, p: 0.8, a: 0.08, per: 0.6, k: 4 }, { f: 5100, p: 0.5, a: 0.05, per: 1.0, k: 2 }]) {
+      const pl = Math.floor(0.018 * sr);
+      for (let gt = rnd(0, 0.3); gt < D; gt += c.per) {
+        for (let q = 0; q < c.k; q++) {
+          const s0 = Math.floor((gt + q * 0.04) * sr);
+          for (let j = 0; j < pl && s0 + j < n; j++) {
+            const v = Math.sin(2 * Math.PI * c.f * (s0 + j) / sr) * Math.sin(Math.PI * j / pl) * c.a;
+            L[s0 + j] += v * (1 - c.p); R[s0 + j] += v * c.p;
+          }
+        }
+      }
+    }
+    h.chain(h.buf(L, R), h.g(1));
+  },
+  stream(o, D) {
+    const h = mk(o);
+    h.chain(h.noise("pink", D), h.f("highpass", 250), h.f("lowpass", 2500), h.g(0.35));
+    for (const k of [{ f: [350, 900], Q: 6, g: 1.6 }, { f: [900, 1800], Q: 8, g: 1.1 }, { f: [1800, 3200], Q: 9, g: 0.6 }]) {
+      const bp = h.f("bandpass", k.f[0], k.Q), gg = h.g(k.g);
+      for (let t = 0; t < D; t += rnd(0.03, 0.12)) { bp.frequency.setTargetAtTime(rnd(k.f[0], k.f[1]), t, 0.02); gg.gain.setTargetAtTime(rnd(0.2, 1) * k.g, t, 0.03); }
+      h.chain(h.noise("white", D), bp, gg, h.pan(rnd(-0.5, 0.5)));
+    }
+  },
+  fire(o, D) {
+    const h = mk(o), roar = h.g(0.6);
+    for (let t = 0; t < D; t += rnd(0.2, 0.6)) roar.gain.setTargetAtTime(rnd(0.35, 0.8), t, 0.15);
+    h.chain(h.noise("brown", D), h.f("lowpass", 400), roar);
+    h.chain(h.noise("pink", D), h.f("bandpass", 1200, 0.7), h.g(0.05));
+    const [L, R] = h.bursts(D, D * 14, [0.0015, 0.006], () => Math.pow(Math.random(), 3) * 0.9, 3, 8);
+    h.chain(h.buf(L, R), h.f("highpass", 700), h.g(1));
+  },
+  wind(o, D) {
+    const h = mk(o);
+    for (const side of [-0.4, 0.4]) {
+      const bp = h.f("bandpass", 500, 1.2), g = h.g(0.4);
+      bp.frequency.setValueAtTime(rnd(300, 900), 0); g.gain.setValueAtTime(0.3, 0);
+      for (let t = rnd(2, 4); t < D; t += rnd(2, 5)) { bp.frequency.linearRampToValueAtTime(rnd(250, 1100), t); g.gain.linearRampToValueAtTime(rnd(0.15, 0.85), t); }
+      h.chain(h.noise("pink", D), bp, g, h.pan(side));
+    }
+    const wb = h.f("bandpass", 1800, 12), wg = h.g(0.0);
+    for (let t = 0; t < D; t += rnd(3, 6)) { wg.gain.linearRampToValueAtTime(rnd(0, 0.5), t); wb.frequency.linearRampToValueAtTime(rnd(1400, 2200), t); }
+    h.chain(h.noise("white", D), wb, wg);
+  },
+};
+
+async function ensureBuffer(id) {
+  if (E.buffers[id]) return E.buffers[id];
+  if (E.pending[id]) return E.pending[id];
+  ensureCtx();
+  const sr = E.ctx.sampleRate, D = LOOP + XF;
+  E.pending[id] = (async () => {
+    const o = new OfflineAudioContext(2, Math.ceil(D * sr), sr);
+    RECIPES[id](o, D);
+    const r = await o.startRendering();
+    const N = LOOP * sr, F = Math.floor(XF * sr), out = E.ctx.createBuffer(2, N, sr);
+    let sq = 0, pk = 0;
+    for (let c = 0; c < 2; c++) {
+      const s = r.getChannelData(c), d = out.getChannelData(c);
+      d.set(s.subarray(0, N));
+      for (let i = 0; i < F; i++) { const k = i / F; d[i] = s[i] * Math.sin(k * Math.PI / 2) + s[N + i] * Math.cos(k * Math.PI / 2); }
+      for (let i = 0; i < N; i++) { sq += d[i] * d[i]; const a = Math.abs(d[i]); if (a > pk) pk = a; }
+    }
+    const rms = Math.sqrt(sq / (2 * N)) || 1, gain = Math.min(0.14 / rms, 0.95 / (pk || 1));
+    for (let c = 0; c < 2; c++) { const d = out.getChannelData(c); for (let i = 0; i < N; i++) d[i] *= gain; }
+    E.buffers[id] = out; delete E.pending[id];
+    return out;
+  })();
+  return E.pending[id];
+}
+
+function smoothSquare(c) {
+  const n = 16, re = new Float32Array(n), im = new Float32Array(n);
+  for (let k = 1; k < n; k += 2) { const x = Math.PI * k / n; im[k] = (4 / Math.PI) / k * (Math.sin(x) / x); }
+  return c.createPeriodicWave(re, im);
+}
+function buildTone(c, dest, mode, beat, carrier) {
+  const out = c.createGain(); out.gain.value = 0; out.connect(dest);
+  const t0 = c.currentTime, nodes = [];
+  let set;
+  if (mode === "binaural") {
+    const m = c.createChannelMerger(2), L = c.createOscillator(), R = c.createOscillator();
+    L.connect(m, 0, 0); R.connect(m, 0, 1); m.connect(out); nodes.push(L, R);
+    set = (b, cf, smooth) => { const t = c.currentTime; for (const [o, f] of [[L, cf - b / 2], [R, cf + b / 2]]) smooth ? o.frequency.setTargetAtTime(f, t, 0.08) : o.frequency.setValueAtTime(f, t); };
+  } else {
+    const osc = c.createOscillator(), am = c.createGain(), lfo = c.createOscillator(), depth = c.createGain(), off = c.createConstantSource();
+    am.gain.value = 0; depth.gain.value = 0.5; off.offset.value = 0.5; lfo.setPeriodicWave(smoothSquare(c));
+    lfo.connect(depth).connect(am.gain); off.connect(am.gain); osc.connect(am).connect(out); nodes.push(osc, lfo, off);
+    set = (b, cf, smooth) => { const t = c.currentTime; for (const [o, f] of [[osc, cf], [lfo, b]]) smooth ? o.frequency.setTargetAtTime(f, t, 0.08) : o.frequency.setValueAtTime(f, t); };
+  }
+  set(beat, carrier, false);
+  nodes.forEach(n => n.start(t0));
+  return { mode, out, set, level: mode === "binaural" ? 0.42 : 0.32, stop(t) { nodes.forEach(n => { try { n.stop(t); } catch (e) {} }); } };
+}
+function buildLayer(c, dest, id, buffer, level) {
+  const src = c.createBufferSource(); src.buffer = buffer; src.loop = true;
+  const g = c.createGain(); g.gain.value = level;
+  const L = { id, src, g, filters: [] };
+  if (id === "tinnitus") {
+    let node = src;
+    for (const k of [0.84, 1, 1.19]) { const f = c.createBiquadFilter(); f.type = "notch"; f.frequency.value = S.tinHz * k; f.Q.value = 2.2; node.connect(f); node = f; L.filters.push([f, k]); }
+    node.connect(g);
+  } else src.connect(g);
+  g.connect(dest);
+  src.start(0, Math.random() * LOOP);
+  return L;
+}
+
+function currentBeat() {
+  if (!E.ramp || !E.ctx) return S.beat;
+  const k = Math.min(1, (E.ctx.currentTime - E.ramp.t0) / (8 * 60));
+  if (k >= 1) { E.ramp = null; return S.beat; }
+  return E.ramp.from + (S.beat - E.ramp.from) * k;
+}
+
+function liveTone() {
+  const c = E.ctx, t = c.currentTime;
+  if (E.tone && (S.tone === "off" || E.tone.mode !== S.tone)) {
+    const old = E.tone; old.out.gain.setTargetAtTime(0, t, 0.15); old.stop(t + 1); E.tone = null;
+  }
+  if (S.tone === "off") return;
+  if (!E.tone) {
+    E.tone = buildTone(c, E.master, S.tone, currentBeat(), S.carrier);
+    E.tone.out.gain.setTargetAtTime(E.tone.level, t, 0.3);
+  } else E.tone.set(currentBeat(), S.carrier, true);
+}
+async function liveLayers() {
+  const c = E.ctx, t = c.currentTime;
+  for (const id of Object.keys(E.layers)) {
+    if (E.layers[id] === "loading") { if (!S.mix[id]) delete E.layers[id]; continue; }
+    if (!S.mix[id]) { const L = E.layers[id]; L.g.gain.setTargetAtTime(0, t, 0.2); setTimeout(() => { try { L.src.stop(); L.g.disconnect(); } catch (e) {} }, 1200); delete E.layers[id]; }
+    else E.layers[id].g.gain.setTargetAtTime(layerLevel(id, S.mix[id]), t, 0.1);
+  }
+  for (const id of Object.keys(S.mix)) {
+    if (E.layers[id] || !S.mix[id]) continue;
+    E.layers[id] = "loading"; renderMixer();
+    const buf = await ensureBuffer(id);
+    if (E.layers[id] !== "loading") continue;
+    if (!E.playing || S.bg || !S.mix[id]) { delete E.layers[id]; renderMixer(); continue; }
+    const L = buildLayer(c, E.master, id, buf, 0);
+    L.g.gain.setTargetAtTime(layerLevel(id, S.mix[id]), c.currentTime, 0.4);
+    E.layers[id] = L; renderMixer();
+  }
+}
+function liveTeardown(fade) {
+  const c = E.ctx, t = c.currentTime;
+  if (E.tone) { E.tone.stop(t + fade + 0.1); E.tone = null; }
+  for (const id of Object.keys(E.layers)) { const L = E.layers[id]; if (L !== "loading") { try { L.src.stop(t + fade + 0.1); } catch (e) {} } delete E.layers[id]; }
+}
+
+// ---- lock-screen loop (renders 60 s of the whole mix into a WAV and plays it through <audio>) ----
+const bgAudio = $("bg-audio");
+function encodeWav(buf) {
+  const ch = 2, sr = buf.sampleRate, n = buf.length, ab = new ArrayBuffer(44 + n * ch * 2), v = new DataView(ab);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); v.setUint32(4, 36 + n * ch * 2, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+  v.setUint16(22, ch, true); v.setUint32(24, sr, true); v.setUint32(28, sr * ch * 2, true); v.setUint16(32, ch * 2, true); v.setUint16(34, 16, true);
+  w(36, "data"); v.setUint32(40, n * ch * 2, true);
+  const L = buf.getChannelData(0), R = buf.getChannelData(1); let o = 44;
+  for (let i = 0; i < n; i++) {
+    let s = Math.max(-1, Math.min(1, L[i])); v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    s = Math.max(-1, Math.min(1, R[i])); v.setInt16(o + 2, s < 0 ? s * 0x8000 : s * 0x7fff, true); o += 4;
+  }
+  return new Blob([ab], { type: "audio/wav" });
+}
+async function renderBg() {
+  ensureCtx();
+  const sr = E.ctx.sampleRate, D = 60, o = new OfflineAudioContext(2, D * sr, sr);
+  const m = o.createGain(); m.gain.value = volLevel(); m.connect(o.destination);
+  if (S.tone !== "off") { const tn = buildTone(o, m, S.tone, S.beat, S.carrier); tn.out.gain.value = tn.level; }
+  for (const id of Object.keys(S.mix)) if (S.mix[id]) buildLayer(o, m, id, await ensureBuffer(id), layerLevel(id, S.mix[id]));
+  return encodeWav(await o.startRendering());
+}
+let bgTimer = null, bgGen = 0, SILENT = null;
+function scheduleBg(delay = 700) {
+  if (!E.playing || !S.bg) return;
+  clearTimeout(bgTimer);
+  bgTimer = setTimeout(applyBg, delay);
+  E.bgBusy = true; renderStatus();
+}
+async function applyBg() {
+  const gen = ++bgGen;
+  E.bgBusy = true; renderStatus();
+  const blob = await renderBg();
+  if (gen !== bgGen || !E.playing || !S.bg) return;
+  const url = URL.createObjectURL(blob);
+  E.bgSwap = true;
+  bgAudio.loop = true; bgAudio.src = url; bgAudio.volume = 1;
+  try { await bgAudio.play(); } catch (e) {}
+  E.bgSwap = false;
+  if (E.bgUrl) URL.revokeObjectURL(E.bgUrl);
+  E.bgUrl = url; E.bgBusy = false; renderStatus();
+}
+bgAudio.addEventListener("pause", () => { if (E.playing && S.bg && !E.bgSwap && !bgAudio.ended) stop(0); });
+bgAudio.addEventListener("timeupdate", tick);
+
+// ---- transport ----
+async function start() {
+  if (E.playing) return;
+  ensureCtx();
+  if (S.bg) { if (!SILENT) { const sb = E.ctx.createBuffer(2, 2400, E.ctx.sampleRate); SILENT = URL.createObjectURL(encodeWav(sb)); } E.bgSwap = true; bgAudio.src = SILENT; bgAudio.play().catch(() => {}); E.bgSwap = false; }
+  try { await E.ctx.resume(); } catch (e) {}
+  E.playing = true; E.startedAt = Date.now();
+  E.endAt = S.timer && !F.on ? Date.now() + S.timer * 60000 : 0;
+  if (S.bg) { E.ramp = null; applyBg(); }
+  else {
+    const t = E.ctx.currentTime;
+    E.ramp = S.ramp && Math.abs(S.beat - 10) > 0.4 ? { t0: t, from: 10 } : null;
+    E.master.gain.cancelScheduledValues(t); E.master.gain.setValueAtTime(E.master.gain.value, t);
+    E.master.gain.linearRampToValueAtTime(volLevel(), t + 3);
+    liveTone(); liveLayers();
+  }
+  try { E.wake = await navigator.wakeLock?.request("screen"); } catch (e) { E.wake = null; }
+  mediaSession(); renderAll();
+}
+function stop(fade = 1.2, nolog = false) {
+  if (!E.playing) return;
+  E.playing = false; E.ramp = null; clearTimeout(bgTimer); bgGen++;
+  if (S.bg || bgAudio.src) { E.bgSwap = true; bgAudio.pause(); bgAudio.removeAttribute("src"); bgAudio.load(); E.bgSwap = false; E.bgBusy = false; }
+  if (E.ctx) {
+    const t = E.ctx.currentTime;
+    E.master.gain.cancelScheduledValues(t); E.master.gain.setValueAtTime(E.master.gain.value, t); E.master.gain.linearRampToValueAtTime(0, t + fade);
+    liveTeardown(fade);
+  }
+  const mins = (Date.now() - E.startedAt) / 60000;
+  if (mins >= 1 && !nolog) logSession(Math.round(mins), S.label);
+  try { E.wake?.release(); } catch (e) {} E.wake = null;
+  if (navigator.mediaSession) navigator.mediaSession.playbackState = "paused";
+  renderAll();
+}
+function mediaSession() {
+  if (!("mediaSession" in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: S.label, artist: "Beatfield", album: describe() });
+    navigator.mediaSession.playbackState = "playing";
+    navigator.mediaSession.setActionHandler("play", () => start());
+    navigator.mediaSession.setActionHandler("pause", () => stop());
+    navigator.mediaSession.setActionHandler("stop", () => stop());
+  } catch (e) {}
+}
+
+// one function for every setting change
+function update(what = {}) {
+  save();
+  if (E.playing) {
+    if (S.bg) scheduleBg();
+    else {
+      if (what.tone) liveTone();
+      if (what.mix) liveLayers();
+      if (what.vol) E.master.gain.setTargetAtTime(volLevel(), E.ctx.currentTime, 0.1);
+      if (what.tin) for (const [f, k] of (E.layers.tinnitus?.filters || [])) f.frequency.setTargetAtTime(S.tinHz * k, E.ctx.currentTime, 0.05);
+    }
+    if (what.label || what.tone || what.mix) mediaSession();
+  }
+  renderAll();
+}
+function applyConfig(cfg, label) {
+  if (cfg.tone) Object.assign(S, { tone: cfg.tone.mode, beat: cfg.tone.beat, carrier: cfg.tone.carrier, ramp: !!cfg.tone.ramp });
+  if (cfg.mix) S.mix = Object.assign({}, cfg.mix);
+  if (cfg.timer != null) { S.timer = cfg.timer; if (E.playing) E.endAt = S.timer && !F.on ? Date.now() + S.timer * 60000 : 0; }
+  if (label) S.label = label;
+  E.ramp = null;
+  if (E.playing && S.ramp && !S.bg) E.ramp = { t0: E.ctx.currentTime, from: 10 };
+  update({ tone: true, mix: true, label: true });
+}
+
+// chime for focus transitions and breath cues
+function chime(kind = "bell") {
+  ensureCtx(); E.ctx.resume?.();
+  const c = E.ctx, t = c.currentTime, g = c.createGain(); g.connect(c.destination);
+  const parts = kind === "bell" ? [[660, 0.25], [990, 0.12], [1320, 0.06]] : kind === "in" ? [[440, 0.12]] : [[330, 0.12]];
+  const dur = kind === "bell" ? 3 : 0.9;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5 * (S.vol / 100 + 0.2), t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  for (const [f, a] of parts) { const o = c.createOscillator(), og = c.createGain(); o.frequency.value = f; og.gain.value = a; o.connect(og).connect(g); o.start(t); o.stop(t + dur); }
+}
+
+// ================= Focus (pomodoro) =================
+const F = { on: false, phase: "work", cycle: 1, endAt: 0, len: 0 };
+function foLen(ph) { return (ph === "work" ? S.fo.work : ph === "long" ? 15 : S.fo.brk) * 60000; }
+function foEnter(ph) {
+  F.phase = ph; F.len = foLen(ph); F.endAt = Date.now() + F.len;
+  const tone = ph === "work" ? { mode: S.tone === "off" ? "binaural" : S.tone, beat: 16, carrier: 250 } : { mode: S.tone === "off" ? "binaural" : S.tone, beat: 10, carrier: 220 };
+  applyConfig({ tone }, ph === "work" ? `집중 ${F.cycle}회차` : ph === "long" ? "긴 휴식" : "짧은 휴식");
+}
+function foStart() {
+  F.on = true; F.cycle = 1; foEnter("work");
+  if (!E.playing) start(); else E.endAt = 0;
+  chime("bell"); renderFocus();
+}
+function foStop() { F.on = false; stop(); renderFocus(); }
+function foNext() {
+  chime("bell");
+  if (F.phase === "work") {
+    if (F.cycle >= S.fo.cyc) { foEnter("long"); }
+    else foEnter("brk");
+  } else if (F.phase === "long") { foStop(); return; }
+  else { F.cycle++; foEnter("work"); }
+  renderFocus();
+}
+
+// ================= Breath =================
+const B = { on: false, step: 0, stepEnd: 0, endAt: 0, rounds: 0, timer: null, startedWithSound: false };
+function brPattern() { return BREATHS.find(b => b.id === S.br) || BREATHS[0]; }
+function brStart() {
+  B.on = true; B.step = -1; B.rounds = 0; B.endAt = Date.now() + S.brMin * 60000; B.t0 = Date.now();
+  if (S.brMix && !E.playing) { start(); B.startedWithSound = true; } else B.startedWithSound = false;
+  ensureCtx(); E.ctx.resume?.();
+  brNext(); renderBreath();
+}
+function brStop(done) {
+  B.on = false; clearTimeout(B.timer);
+  const orb = $("orb"); orb.style.transitionDuration = "1.2s"; orb.style.transform = "scale(0.55)";
+  const mins = (Date.now() - B.t0) / 60000;
+  if (mins >= 1) logSession(Math.round(mins), "호흡 · " + brPattern().name);
+  if (B.startedWithSound) stop(1.2, true);
+  $("br-label").textContent = done ? "잘했어요" : "준비"; $("br-count").textContent = "–";
+  $("br-round").textContent = done ? `${B.rounds}회 반복했어요` : "패턴을 고르고 시작하세요";
+  renderBreath();
+}
+function brNext() {
+  const p = brPattern();
+  B.step = (B.step + 1) % p.steps.length;
+  if (B.step === 0) { if (B.rounds > 0 && Date.now() >= B.endAt) return brStop(true); B.rounds++; }
+  const [label, secs, scale] = p.steps[B.step];
+  const orb = $("orb");
+  orb.style.transitionDuration = secs + "s";
+  orb.style.transform = `scale(${0.55 + 0.45 * scale})`;
+  if (S.brSound && label !== "멈추기") chime(scale > 0.5 ? "in" : "out");
+  $("br-label").textContent = label;
+  $("br-round").textContent = `${B.rounds}회차 · 남은 시간 ${mmss(Math.max(0, B.endAt - Date.now()))}`;
+  B.stepEnd = Date.now() + secs * 1000;
+  B.timer = setTimeout(brNext, secs * 1000);
+}
+
+// ================= History =================
+function logSession(min, label) {
+  HIST.unshift({ ts: Date.now(), min, label }); HIST = HIST.slice(0, 500); store.set("history", HIST);
+}
+const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+// ================= Tick =================
+function tick() {
+  const now = Date.now();
+  if (E.playing && E.endAt && now >= E.endAt) { E.endAt = 0; stop(10); }
+  if (F.on && now >= F.endAt) foNext();
+  if (E.playing && E.ramp && E.tone) { E.tone.set(currentBeat(), S.carrier, true); if (S.tab === "sound") renderSound(); }
+  if (B.on) $("br-count").textContent = Math.max(1, Math.ceil((B.stepEnd - now) / 1000));
+  renderStatus();
+  if (F.on && S.tab === "focus") renderFocusTime();
+}
+setInterval(tick, 250);
+
+// ================= Rendering =================
+const mmss = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
+function describe() {
+  const parts = [];
+  if (S.tone !== "off") parts.push(`${bandOf(S.beat).g} ${S.beat} Hz${S.tone === "iso" ? " 아이소크로닉" : ""}`);
+  const m = Object.keys(S.mix).filter(k => S.mix[k]).map(soundName);
+  if (m.length) parts.push(m.join(" + "));
+  return parts.join(" · ") || "소리 없음";
+}
+
+// presets
+const presetBox = $("presets");
+presetBox.innerHTML = WAVES.map(p => `<button class="preset" data-id="${p.id}"><span class="g">${bandOf(p.beat).g}</span><span class="n">${p.name}</span><span class="f">${p.beat} Hz</span></button>`).join("");
+presetBox.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const p = WAVES.find(w => w.id === b.dataset.id);
+  if (S.tone === "off") S.tone = "binaural";
+  Object.assign(S, { beat: p.beat, carrier: p.carrier, label: p.name });
+  E.ramp = null; update({ tone: true, label: true });
+});
+$("solf").innerHTML = SOLF.map(s => `<button data-hz="${s.hz}"><b>${s.hz} Hz</b><span>${s.d}</span></button>`).join("");
+$("solf").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (S.tone === "off") S.tone = "binaural";
+  S.carrier = +b.dataset.hz; S.label = `${S.carrier} Hz 치유 주파수`; update({ tone: true, label: true });
+});
+$("tone-seg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.tone = b.dataset.tone; update({ tone: true }); });
+const bindRange = (id, key, what, num = true) => $(id).addEventListener("input", () => { S[key] = num ? +$(id).value : $(id).value; if (key === "beat" || key === "carrier") { E.ramp = null; S.label = "사용자 설정"; } update(what); });
+bindRange("beat", "beat", { tone: true }); bindRange("carrier", "carrier", { tone: true });
+bindRange("vol", "vol", { vol: true }); bindRange("tin", "tinHz", { tin: true });
+$("ramp").addEventListener("change", () => { S.ramp = $("ramp").checked; if (!S.ramp) E.ramp = null; update({ tone: true }); });
+$("bgmode").addEventListener("change", () => {
+  const was = E.playing; if (was) stop(0.3);
+  S.bg = $("bgmode").checked; if (S.bg) S.ramp = false; save();
+  if (was) setTimeout(start, 400); renderAll();
+});
+$("timer-seg").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.timer = +b.dataset.min; if (E.playing && !F.on) E.endAt = S.timer ? Date.now() + S.timer * 60000 : 0; update();
+});
+$("tin-test").addEventListener("click", () => {
+  ensureCtx(); E.ctx.resume?.();
+  const c = E.ctx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+  o.frequency.value = S.tinHz; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.08, t + 0.1); g.gain.linearRampToValueAtTime(0, t + 1.5);
+  o.connect(g).connect(c.destination); o.start(t); o.stop(t + 1.6);
+});
+
+// mixer
+$("mixer").innerHTML = SOUNDS.map(s => `<button class="tile" data-id="${s.id}">${icon(s.ic)}<span>${s.name}</span></button>`).join("");
+$("mixer").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const id = b.dataset.id;
+  if (S.mix[id]) delete S.mix[id]; else S.mix[id] = id === "tinnitus" ? 40 : 35;
+  if (!Object.keys(S.mix).length && S.tone === "off") S.label = "소리 없음";
+  update({ mix: true });
+});
+$("levels").addEventListener("input", e => {
+  const r = e.target.closest("input"); if (!r) return;
+  S.mix[r.dataset.id] = +r.value; r.parentElement.querySelector("output").textContent = r.value + "%"; update({ mix: true });
+});
+function renderMixer() {
+  for (const t of $("mixer").children) {
+    const id = t.dataset.id;
+    t.setAttribute("aria-pressed", String(!!S.mix[id]));
+    t.classList.toggle("loading", E.layers[id] === "loading" || (!!E.pending[id] && !!S.mix[id]));
+  }
+  const ids = Object.keys(S.mix).filter(k => S.mix[k]);
+  const lv = $("levels");
+  const want = ids.join(",");
+  if (lv.dataset.ids !== want) {
+    lv.dataset.ids = want;
+    lv.innerHTML = ids.map(id => `<div class="level"><label for="lv-${id}">${soundName(id)}</label><input type="range" id="lv-${id}" data-id="${id}" min="1" max="100" value="${S.mix[id]}"><output>${S.mix[id]}%</output></div>`).join("");
+  } else for (const r of lv.querySelectorAll("input")) if (document.activeElement !== r) { r.value = S.mix[r.dataset.id]; r.parentElement.querySelector("output").textContent = r.value + "%"; }
+  $("mix-count").textContent = ids.length ? `${ids.length}개 켜짐` : "여러 개를 겹쳐 들을 수 있어요";
+  $("tin-ctl").hidden = !S.mix.tinnitus;
+}
+
+// saved mixes
+$("save-mix").addEventListener("click", () => {
+  const name = `믹스 ${SAVED.length + 1} · ${describe()}`;
+  SAVED.unshift({ name, tone: { mode: S.tone, beat: S.beat, carrier: S.carrier, ramp: S.ramp }, mix: { ...S.mix }, timer: S.timer });
+  store.set("mixes", SAVED); renderSaved();
+});
+$("saved").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const i = +b.closest(".saved-row").dataset.i;
+  if (b.classList.contains("apply")) applyConfig(SAVED[i], SAVED[i].name.split(" · ")[0]);
+  else { SAVED.splice(i, 1); store.set("mixes", SAVED); renderSaved(); }
+});
+function renderSaved() {
+  $("saved").innerHTML = SAVED.length ? SAVED.map((m, i) => `<div class="saved-row" data-i="${i}"><button class="apply">${m.name}</button><button class="icon-btn" aria-label="삭제">${icon("trash")}</button></div>`).join("")
+    : `<p class="note">마음에 드는 조합을 저장해 두면 한 번에 다시 불러올 수 있어요.</p>`;
+}
+
+function renderSound() {
+  const b = E.playing ? currentBeat() : S.beat, band = bandOf(b);
+  if (S.tone === "off") {
+    $("ro-greek").textContent = "자연 소리"; $("ro-hz").textContent = "—"; $("ro-band").textContent = describe();
+    $("ch-l").textContent = ""; $("ch-r").textContent = "";
+  } else {
+    $("ro-greek").textContent = `${band.g} ${band.name}`; $("ro-hz").textContent = b.toFixed(1); $("ro-band").textContent = band.desc;
+    if (S.tone === "binaural") { $("ch-l").textContent = `L ${(S.carrier - b / 2).toFixed(1)} Hz`; $("ch-r").textContent = `R ${(S.carrier + b / 2).toFixed(1)} Hz`; }
+    else { $("ch-l").textContent = `톤 ${S.carrier} Hz`; $("ch-r").textContent = `박자 ${b.toFixed(1)} Hz`; }
+  }
+  $("beat").value = S.beat; $("carrier").value = S.carrier; $("vol").value = S.vol; $("tin").value = S.tinHz;
+  $("ramp").checked = S.ramp; $("ramp").disabled = S.bg; $("bgmode").checked = S.bg;
+  $("beat-out").textContent = `${S.beat.toFixed(1)} Hz`; $("carrier-out").textContent = `${S.carrier} Hz`;
+  $("vol-out").textContent = `${S.vol}%`; $("tin-out").textContent = `${S.tinHz} Hz`;
+  for (const x of $("tone-seg").children) x.setAttribute("aria-pressed", String(x.dataset.tone === S.tone));
+  $("tone-note").textContent = { binaural: "양쪽 귀에 다른 주파수를 들려줘요. 헤드폰이 필요해요.", iso: "소리를 일정한 박자로 켰다 꺼요. 스피커로도 효과가 있어요.", off: "뇌파 톤 없이 자연 소리와 노이즈만 들어요." }[S.tone];
+  for (const x of presetBox.children) { const p = WAVES.find(w => w.id === x.dataset.id); x.setAttribute("aria-pressed", String(S.tone !== "off" && p.beat === S.beat && p.carrier === S.carrier)); }
+  for (const x of $("solf").children) x.setAttribute("aria-pressed", String(S.tone !== "off" && +x.dataset.hz === S.carrier));
+  for (const x of $("timer-seg").children) x.setAttribute("aria-pressed", String(+x.dataset.min === S.timer));
+  renderMixer();
+}
+function renderStatus() {
+  $("ic-play").hidden = E.playing; $("ic-stop").hidden = !E.playing;
+  $("play").setAttribute("aria-label", E.playing ? "정지" : "재생");
+  $("st-title").textContent = E.playing ? S.label : `${S.label} 준비됨`;
+  $("st-sub").textContent = E.bgBusy ? "잠금화면용 루프를 만드는 중…" : E.ramp ? `10 Hz → ${S.beat} Hz로 이동 중 · ${describe()}` : describe();
+  const now = Date.now();
+  $("clock").textContent = F.on ? mmss(F.endAt - now)
+    : E.playing ? (E.endAt ? mmss(E.endAt - now) : mmss(now - E.startedAt))
+    : (S.timer ? mmss(S.timer * 60000) : "∞");
+}
+
+// routines + search
+function routineRow(r) {
+  return `<button class="row" data-kind="routine" data-id="${r.id}"><span class="badge">${r.tone.mode === "off" ? "~" : bandOf(r.tone.beat).g}</span><span class="txt"><b>${r.name}</b><span>${r.desc}</span></span><span class="tag">${r.timer ? r.timer + "분" : "∞"}</span></button>`;
+}
+function inHours(r, h) { const [a, b] = r.hours; return (h >= a && h < b) || (h + 24 >= a && h + 24 < b); }
+function renderRoutines() {
+  const q = $("q").value.trim().toLowerCase();
+  const h = new Date().getHours();
+  $("routine-home").hidden = !!q;
+  if (!q) {
+    const rec = ROUTINES.filter(r => inHours(r, h) && r.hours[1] - r.hours[0] < 24)[0] || ROUTINES[5];
+    $("now-card").innerHTML = `<span class="eyebrow">지금 ${h}시에 추천</span><h3>${rec.name}</h3><p>${rec.desc}</p><button class="btn" data-kind="routine" data-id="${rec.id}">바로 시작</button>`;
+    $("routine-list").innerHTML = ROUTINES.map(routineRow).join("");
+    return;
+  }
+  const hit = s => s.toLowerCase().includes(q);
+  const out = [];
+  for (const r of ROUTINES) if (hit(r.name + r.desc)) out.push(routineRow(r));
+  for (const s of SOUNDS) if (hit(s.name + s.id)) out.push(`<button class="row" data-kind="sound" data-id="${s.id}"><span class="badge">${icon(s.ic)}</span><span class="txt"><b>${s.name}</b><span>자연 소리 · 믹스에 ${S.mix[s.id] ? "켜져 있어요" : "추가"}</span></span><span class="tag">소리</span></button>`);
+  for (const w of WAVES) if (hit(w.name + bandOf(w.beat).name + bandOf(w.beat).desc)) out.push(`<button class="row" data-kind="wave" data-id="${w.id}"><span class="badge">${bandOf(w.beat).g}</span><span class="txt"><b>${w.name} · ${bandOf(w.beat).name}</b><span>${w.beat} Hz · ${bandOf(w.beat).desc}</span></span><span class="tag">뇌파</span></button>`);
+  for (const s of SOLF) if (hit(s.hz + "hz " + s.d + " 솔페지오 치유")) out.push(`<button class="row" data-kind="solf" data-id="${s.hz}"><span class="badge">♪</span><span class="txt"><b>${s.hz} Hz</b><span>${s.d}</span></span><span class="tag">치유 주파수</span></button>`);
+  for (const b of BREATHS) if (hit(b.name + b.desc + " 호흡")) out.push(`<button class="row" data-kind="breath" data-id="${b.id}"><span class="badge">○</span><span class="txt"><b>${b.name}</b><span>${b.desc}</span></span><span class="tag">호흡</span></button>`);
+  $("routine-list").innerHTML = out.join("") || `<div class="empty">'${q.replace(/[<>&"]/g, "")}'에 맞는 결과가 없어요. 수면, 집중, 빗소리처럼 검색해 보세요.</div>`;
+}
+$("q").addEventListener("input", renderRoutines);
+$("v-routine").addEventListener("click", e => {
+  const b = e.target.closest("[data-kind]"); if (!b) return;
+  const id = b.dataset.id, k = b.dataset.kind;
+  if (k === "routine") { const r = ROUTINES.find(x => x.id === id); applyConfig(r, r.name); if (!E.playing) start(); }
+  else if (k === "sound") { S.mix[id] = S.mix[id] || 35; update({ mix: true }); setTab("sound"); }
+  else if (k === "wave") { const w = WAVES.find(x => x.id === id); if (S.tone === "off") S.tone = "binaural"; Object.assign(S, { beat: w.beat, carrier: w.carrier, label: w.name }); update({ tone: true, label: true }); setTab("sound"); }
+  else if (k === "solf") { if (S.tone === "off") S.tone = "binaural"; S.carrier = +id; S.label = `${id} Hz 치유 주파수`; update({ tone: true, label: true }); setTab("sound"); }
+  else if (k === "breath") { S.br = id; save(); setTab("breath"); }
+  renderRoutines();
+});
+
+// breath UI
+$("patterns").innerHTML = BREATHS.map(b => `<button class="pattern" data-id="${b.id}"><span class="txt"><b>${b.name}</b><span>${b.desc}</span></span><code>${b.steps.map(s => s[1]).join("-")}</code></button>`).join("");
+$("patterns").addEventListener("click", e => { const b = e.target.closest("button"); if (!b || B.on) return; S.br = b.dataset.id; save(); renderBreath(); });
+$("br-len").addEventListener("click", e => { const b = e.target.closest("button"); if (!b || B.on) return; S.brMin = +b.dataset.min; save(); renderBreath(); });
+$("br-sound").addEventListener("change", () => { S.brSound = $("br-sound").checked; save(); });
+$("br-mix").addEventListener("change", () => { S.brMix = $("br-mix").checked; save(); });
+$("br-start").addEventListener("click", () => B.on ? brStop(false) : brStart());
+function renderBreath() {
+  for (const x of $("patterns").children) x.setAttribute("aria-pressed", String(x.dataset.id === S.br));
+  for (const x of $("br-len").children) x.setAttribute("aria-pressed", String(+x.dataset.min === S.brMin));
+  $("br-sound").checked = S.brSound; $("br-mix").checked = S.brMix;
+  $("br-start").textContent = B.on ? "멈추기" : "시작";
+}
+
+// focus UI
+for (const [id, key] of [["fo-work", "work"], ["fo-brk", "brk"], ["fo-cyc", "cyc"]])
+  $(id).addEventListener("click", e => { const b = e.target.closest("button"); if (!b || F.on) return; S.fo[key] = +b.dataset.v; save(); renderFocus(); });
+$("fo-start").addEventListener("click", () => F.on ? foStop() : foStart());
+$("fo-skip").addEventListener("click", () => { if (F.on) foNext(); });
+function renderFocusTime() {
+  const len = F.on ? F.len : S.fo.work * 60000, left = F.on ? Math.max(0, F.endAt - Date.now()) : len;
+  $("fo-time").textContent = mmss(left);
+  $("ring-prog").style.strokeDashoffset = String(276.46 * (1 - left / len));
+}
+function renderFocus() {
+  for (const [id, key] of [["fo-work", "work"], ["fo-brk", "brk"], ["fo-cyc", "cyc"]])
+    for (const x of $(id).children) { x.setAttribute("aria-pressed", String(+x.dataset.v === S.fo[key])); x.disabled = F.on; }
+  $("fo-phase").textContent = !F.on ? "준비" : F.phase === "work" ? "집중" : F.phase === "long" ? "긴 휴식" : "휴식";
+  $("fo-cycle").textContent = `${F.on ? F.cycle : 1} / ${S.fo.cyc} 회차`;
+  $("fo-dots").innerHTML = Array.from({ length: S.fo.cyc }, (_, i) => `<i class="${F.on && (i < F.cycle - 1 || (i === F.cycle - 1 && F.phase !== "work")) ? "on" : ""}"></i>`).join("");
+  $("fo-start").textContent = F.on ? "집중 끝내기" : "집중 시작";
+  $("fo-skip").disabled = !F.on;
+  renderFocusTime();
+}
+
+// stats
+function renderStats() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(today); d.setDate(d.getDate() - (6 - i)); return d; });
+  const byDay = {}; for (const h of HIST) { const k = dayKey(new Date(h.ts)); byDay[k] = (byDay[k] || 0) + h.min; }
+  const vals = days.map(d => byDay[dayKey(d)] || 0), max = Math.max(30, ...vals);
+  const DN = ["일", "월", "화", "수", "목", "금", "토"];
+  $("bars").innerHTML = days.map((d, i) => `<div class="bar${i === 6 ? " today" : ""}"><em>${vals[i] || ""}</em><i style="height:${Math.round(100 * vals[i] / max)}%"></i><span>${i === 6 ? "오늘" : DN[d.getDay()]}</span></div>`).join("");
+  $("s-week").innerHTML = `${vals.reduce((a, b) => a + b, 0)}<small>분</small>`;
+  let streak = 0; for (let d = new Date(today); byDay[dayKey(d)]; d.setDate(d.getDate() - 1)) streak++;
+  $("s-streak").innerHTML = `${streak}<small>일</small>`;
+  $("s-total").innerHTML = `${HIST.length}<small>회</small>`;
+  $("history").innerHTML = HIST.length ? HIST.slice(0, 12).map(h => { const d = new Date(h.ts); return `<div class="row" style="cursor:default"><span class="txt"><b>${h.label}</b><span>${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}</span></span><span class="tag">${h.min}분</span></div>`; }).join("")
+    : `<div class="empty">아직 기록이 없어요. 1분 이상 들으면 여기에 쌓여요.</div>`;
+  $("clear-box").innerHTML = HIST.length ? `<button class="btn ghost" id="clear-ask">기록 지우기</button>` : "";
+}
+$("clear-box").addEventListener("click", e => {
+  if (e.target.id === "clear-ask") $("clear-box").innerHTML = `<div class="confirm">모든 기록을 지울까요? <button class="btn" id="clear-yes">지우기</button><button class="btn ghost" id="clear-no">취소</button></div>`;
+  else if (e.target.id === "clear-yes") { HIST = []; store.set("history", HIST); renderStats(); }
+  else if (e.target.id === "clear-no") renderStats();
+});
+
+// tabs
+function setTab(v) {
+  S.tab = v; save();
+  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.v === v));
+  for (const id of ["sound", "routine", "breath", "focus", "stats"]) $("v-" + id).hidden = id !== v;
+  if (v === "stats") renderStats(); if (v === "routine") renderRoutines(); if (v === "focus") renderFocus(); if (v === "breath") renderBreath();
+  window.scrollTo(0, 0);
+}
+document.querySelector(".tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setTab(b.dataset.v); });
+$("play").addEventListener("click", () => E.playing ? (F.on ? foStop() : stop()) : start());
+document.addEventListener("keydown", e => { if (e.code === "Space" && !/INPUT|BUTTON|TEXTAREA/.test(document.activeElement?.tagName || "")) { e.preventDefault(); $("play").click(); } });
+document.addEventListener("visibilitychange", async () => { if (document.visibilityState === "visible" && E.playing && !E.wake) { try { E.wake = await navigator.wakeLock?.request("screen"); } catch (e) {} } });
+
+function renderAll() { renderSound(); renderStatus(); renderSaved(); if (S.tab === "focus") renderFocus(); if (S.tab === "stats") renderStats(); }
+
+// ================= Visual =================
+const cv = $("viz"), g = cv.getContext("2d");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let W = 0, H = 0, dpr = 1, phase = 0, last = performance.now(), colors = {}, energy = 0;
+function resize() { const r = cv.getBoundingClientRect(); dpr = Math.min(2, window.devicePixelRatio || 1); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+new ResizeObserver(resize).observe(cv); resize();
+function readColors() { const cs = getComputedStyle(document.documentElement); colors = { accent: cs.getPropertyValue("--accent").trim(), left: cs.getPropertyValue("--left").trim() }; }
+readColors();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readColors);
+new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+function rgba(hex, a) { const h = hex.replace("#", ""); const n = parseInt(h.length === 3 ? h.replace(/./g, "$&$&") : h, 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+function draw(now) {
+  requestAnimationFrame(draw);
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (S.tab !== "sound" || !W) return;
+  const b = E.playing ? currentBeat() : S.beat;
+  let rate = S.tone === "off" ? 0.12 : b <= 6 ? b : b / Math.ceil(b / 6);
+  if (reduce.matches) rate = Math.min(rate, 0.4);
+  if (!E.playing) rate = 0.18;
+  energy += ((E.playing ? 1 : 0.35) - energy) * Math.min(1, dt * 1.5);
+  phase = (phase + 2 * Math.PI * rate * dt) % (Math.PI * 2000);
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const cx = W / 2, cy = H * 0.43, R = Math.min(W, H) * 0.36, s = (1 + Math.cos(phase)) / 2;
+  const rings = reduce.matches ? 3 : 6;
+  for (let i = 0; i < rings; i++) {
+    const k = ((phase / (Math.PI * 2)) + i / rings) % 1;
+    g.beginPath(); g.arc(cx, cy, R * (0.55 + k * 0.75), 0, Math.PI * 2);
+    g.strokeStyle = rgba(colors.accent, (1 - k) * 0.28 * energy); g.lineWidth = 1.2; g.stroke();
+  }
+  const core = R * (0.5 + 0.08 * s * energy);
+  const grad = g.createRadialGradient(cx, cy, core * 0.2, cx, cy, core * 1.25);
+  grad.addColorStop(0, rgba(colors.accent, 0.22 * energy + 0.04)); grad.addColorStop(1, rgba(colors.accent, 0));
+  g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, core * 1.25, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(cx, cy, core, 0, Math.PI * 2); g.strokeStyle = rgba(colors.accent, 0.35 + 0.4 * s * energy); g.lineWidth = 1.5; g.stroke();
+  if (S.tone === "off") return;
+  const y0 = H * 0.85, amp = Math.min(16, H * 0.04), pad = 16;
+  const waves = S.tone === "binaural" ? [[colors.left, 0], [colors.accent, phase]] : [[colors.accent, 0]];
+  for (const [col, off] of waves) {
+    g.beginPath();
+    for (let x = pad; x <= W - pad; x += 2) {
+      const u = (x - pad) / (W - 2 * pad);
+      const env = S.tone === "iso" ? 0.25 + 0.75 * s : 1;
+      const y = y0 + Math.sin(u * 7 * Math.PI * 2 + off + now / 1000 * 0.6) * amp * (0.4 + 0.6 * energy) * env;
+      x === pad ? g.moveTo(x, y) : g.lineTo(x, y);
+    }
+    g.strokeStyle = rgba(col, 0.75); g.lineWidth = 1.6; g.stroke();
+  }
+}
+
+// ================= Boot =================
+if (location.hash && ["sound", "routine", "breath", "focus", "stats"].includes(location.hash.slice(1))) S.tab = location.hash.slice(1);
+setTab(S.tab); renderAll(); requestAnimationFrame(draw);
+if ("serviceWorker" in navigator && location.protocol === "https:" && document.querySelector('link[rel="manifest"]')) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
