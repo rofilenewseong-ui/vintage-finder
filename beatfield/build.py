@@ -48,5 +48,5 @@ def icon(n):
         pts = [(x, S * 0.78 + math.sin(x / S * 4 * 2 * math.pi + ph) * S * 0.035) for x in range(int(S * 0.16), int(S * 0.84), 4)]
         d.line(pts, fill=col, width=int(S * 0.016), joint="curve")
     return im.resize((n, n), Image.LANCZOS)
-for n in (180, 192, 512): icon(n).save(dist / f"icon-{n}.png")
+for n in (180, 192, 512, 1024): icon(n).save(dist / f"icon-{n}.png")
 print("built", sorted(p.name for p in dist.iterdir()))

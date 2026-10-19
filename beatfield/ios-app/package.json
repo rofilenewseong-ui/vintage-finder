@@ -1,0 +1,20 @@
+{
+  "name": "beatfield-ios",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "@capacitor/core": "8.5.2",
+    "@capacitor/ios": "8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2"
+  },
+  "scripts": {
+    "copy-web": "rm -rf www && mkdir -p www && cp ../dist/index.html ../dist/icon-*.png www/",
+    "ios": "npm run copy-web && cap sync ios && cap open ios",
+    "sync": "npm run copy-web && cap sync ios"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
